@@ -1,0 +1,505 @@
+---
+title: "ivi - 3. Semester"
+author: "Ilyas Kayihan"
+format: pdf
+editor: visual
+---
+
+## Interactive Visualization
+
+LO1
+
+```{r}
+# Benötigte Bibliotheken
+library(ggplot2)
+library(dplyr)
+library(plotly)
+
+
+# Erzeuge die Datensätze mit verschiedenen sample_sizes
+sample_sizes <- 1:20  # Wir verwenden sample_sizes von 1 bis 20 (multipliziert mit 1e6)
+datasets <- lapply(sample_sizes, function(size) rnorm(size * 1e6))
+
+# Leere Liste für die Ausführungszeiten
+timing_results <- list()
+
+# Schleife über alle Datensätze
+for (i in 1:length(datasets)) {
+  data <- datasets[[i]]
+  start_time <- Sys.time()  # Startzeit speichern
+  
+  # Histogramm erstellen (nur zur Darstellung)
+  ggplot(data.frame(values = data), aes(x = values)) + 
+    geom_histogram(binwidth = 0.1) +
+    ggtitle(paste("Histogramm für sample_size =", sample_sizes[i]))  # Optional
+  
+  end_time <- Sys.time()  # Endzeit speichern
+  
+  # Speichere die Ausführungszeit und die sample_size
+  timing_results <- append(timing_results, list(list(sample_size = sample_sizes[i] * 1e6, 
+                                                      exec_time = as.numeric(difftime(end_time, start_time, units = "secs")))))
+}
+
+# Umwandlung der Liste in ein DataFrame
+execution_times_df <- bind_rows(timing_results)
+
+# Ausgabe der Ergebnisse
+print(execution_times_df)
+
+# Visualisierung der Ausführungszeiten im Streudiagramm
+ggplot(execution_times_df, aes(x = sample_size, y = exec_time)) + 
+  geom_point(color = "skyblue", size = 3) +  # Streudiagramm (Punkte)
+  geom_smooth(method = "lm", color = "red", se = FALSE) +  # Lineare Regressionslinie
+  labs(
+    title = "Ausführungszeit in Abhängigkeit von der Sample Size",
+    x = "Sample Size",
+    y = "Ausführungszeit (in Sekunden)"
+  ) + 
+  theme_minimal() + 
+  scale_x_continuous(labels = scales::comma)  # Tausendertrennzeichen für bessere Lesbarkeit
+
+
+```
+
+Packages
+
+```{r}
+library(readr)
+library(plotly)
+
+```
+
+Datensatz
+
+```{r}
+# Einlesen des CSV-Datensatzes
+salary <- read_csv("/Users/ilyas/Desktop/FHNW/3. Semester/ivi/Data_Science_Salaries.csv")
+salary
+```
+
+Spalten
+
+```{r}
+colnames(salary)
+```
+
+Werte in den Spalten
+
+```{r}
+# Werte für jede Spalte anzeigen
+lapply(salary[ , !names(salary) %in% c("Job Title", "Salary", "Salary in USD")], unique)
+
+
+```
+
+```{r}
+#Datentypen der Spalten
+sapply(salary, typeof)
+
+```
+
+Die 10 gefragtesten Jobs
+
+```{r}
+
+
+# Angenommen, der 'salary'-Datensatz enthält die Spalten "Job Title" und "Popularity"
+# Wähle die Top 10 meistgefragten Jobs aus
+top_10_job <- salary %>%
+  group_by(`Job Title`) %>%
+  summarize(Popularity = n()) %>%
+  arrange(desc(Popularity)) %>%
+  head(10)
+
+# Erstelle das interaktive Balkendiagramm
+fig <- plot_ly(
+  data = top_10_job,
+  y = ~reorder(`Job Title`, Popularity), 
+  x = ~Popularity,
+  type = 'bar', 
+  orientation = 'h',
+  text = ~paste("Popularity: ", Popularity),
+  textposition = 'outside',
+  color = ~`Job Title`,
+  colors = "Set1",
+  hoverinfo = 'text'
+) %>%
+  layout(
+    title = list(text = "Top 10 Demanded Jobs", font = list(size = 26)),
+    xaxis = list(title = "Popularity"),
+    yaxis = list(title = "Job Title"),
+    showlegend = FALSE
+  )
+
+# Zeige die interaktive Visualisierung
+fig
+
+
+
+```
+
+Shneidermans Mantra
+
+```{r}
+
+# Laden des Datensatzes
+data <- read_csv("/Users/ilyas/Desktop/FHNW/3. Semester/ivi/Data_Science_Salaries.csv")
+
+# 1. Überblick: Interaktiver Scatterplot
+overview_plot <- ggplot(data, aes(x = Year, y = `Salary in USD`, color = `Company Size`)) +
+  geom_point(alpha = 0.6) +
+  labs(
+    title = "Zusammenhang zwischen Jahr, Gehalt und Firmengrösse",
+    x = "Jahr",
+    y = "Gehalt in USD",
+    color = "Firmengrösse"
+  ) +
+  theme_minimal()
+
+interactive_overview <- ggplotly(overview_plot)
+
+# 2. Zoom und Filter: Gehaltsverteilung für Data Scientists (Interaktives Violin-Plot)
+data_scientist_salaries <- data %>%
+  filter(`Job Title` == "Data Scientist")
+
+violin_plot <- ggplot(data_scientist_salaries, aes(x = "", y = `Salary in USD`)) +
+  geom_violin(fill = "skyblue", alpha = 0.7) +
+  geom_jitter(width = 0.2, alpha = 0.4, color = "darkblue") +
+  labs(
+    title = "Gehaltsverteilung für Data Scientists",
+    x = "",
+    y = "Gehalt in USD"
+  ) +
+  theme_minimal()
+
+interactive_violin <- ggplotly(violin_plot)
+
+# 3. Details-on-Demand: Interaktiver Scatterplot für spezifisches Jahr und Erfahrungsniveau
+details <- data %>%
+  filter(Year == 2023 & `Experience Level` == "Senior")
+
+details_plot <- ggplot(details, aes(x = `Company Location`, y = `Salary in USD`, color = `Employment Type`)) +
+  geom_point(size = 3, alpha = 0.7) +
+  labs(
+    title = "Gehälter für Senior-Level im Jahr 2023",
+    x = "Standort des Unternehmens",
+    y = "Gehalt in USD",
+    color = "Beschäftigungsart"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+interactive_details <- ggplotly(details_plot)
+
+# Anzeigen der interaktiven Visualisierungen
+interactive_overview
+interactive_violin
+interactive_details
+
+```
+
+LO3: HCI Basics
+
+```{r}
+# Funktion, um Unterschiede zwischen zwei Reizen zu simulieren
+simulate_webers_law <- function(base_intensity, difference) {
+  # Wahrnehmungsschwelle berechnen
+  perceived_difference <- difference / base_intensity
+  return(perceived_difference)
+}
+
+# Intensitätswerte und Differenzen
+intensities <- c(1, 5, 10, 20, 50, 100) # Verschiedene Basisintensitäten
+difference <- 1                          # Konstanter Unterschied
+
+# Berechnung der wahrgenommenen Unterschiede
+results <- data.frame(
+  BaseIntensity = intensities,
+  PerceivedDifference = sapply(intensities, simulate_webers_law, difference)
+)
+
+# Ergebnisse visualisieren
+library(ggplot2)
+
+ggplot(results, aes(x = BaseIntensity, y = PerceivedDifference)) +
+  geom_line(color = "blue", size = 1) +
+  geom_point(color = "red", size = 3) +
+  labs(
+    title = "Demonstration von Webers Gesetz",
+    x = "Basisintensität (z. B. Anzahl Zuckerwürfel)",
+    y = "Wahrgenommene Differenz (relativ)"
+  ) +
+  theme_minimal()
+
+
+```
+
+Dashboard
+
+```{r}
+library(shiny)
+library(shinydashboard)
+library(plotly)
+library(ggplot2)
+library(dplyr)
+
+```
+
+```{r}
+
+
+
+
+# UI des Dashboards
+ui <- dashboardPage(
+  dashboardHeader(title = "Data Science Salary Dashboard"),
+  
+  dashboardSidebar(
+    sidebarMenu(
+      menuItem("Übersicht", tabName = "overview", icon = icon("bar-chart")),
+      menuItem("Gehaltsverteilung", tabName = "salary_distribution", icon = icon("line-chart")),
+      menuItem("Senior-Level Gehälter", tabName = "details", icon = icon("search")),
+      menuItem("Top 10 Jobs", tabName = "top_jobs", icon = icon("list"))
+    )
+  ),
+  
+  dashboardBody(
+    tabItems(
+      # Übersicht Tab
+      tabItem(
+        tabName = "overview",
+        fluidRow(
+          box(
+            title = "Zusammenhang zwischen Jahr, Gehalt und Firmengrösse", 
+            status = "primary", 
+            solidHeader = TRUE,
+            width = 12, 
+            plotlyOutput("overview_plot")
+          )
+        )
+      ),
+      
+      # Gehaltsverteilung Tab
+      tabItem(
+        tabName = "salary_distribution",
+        fluidRow(
+          box(
+            title = "Gehaltsverteilung für Data Scientists", 
+            status = "primary", 
+            solidHeader = TRUE,
+            width = 12, 
+            plotlyOutput("violin_plot")
+          )
+        )
+      ),
+      
+      # Senior-Level Gehälter Tab
+      tabItem(
+        tabName = "details",
+        fluidRow(
+          box(
+            title = "Gehälter für Senior-Level im Jahr 2023", 
+            status = "primary", 
+            solidHeader = TRUE,
+            width = 12, 
+            plotlyOutput("details_plot")
+          )
+        )
+      ),
+      
+      # Top 10 Jobs Tab
+      tabItem(
+        tabName = "top_jobs",
+        fluidRow(
+          box(
+            title = "Top 10 Demanded Jobs", 
+            status = "primary", 
+            solidHeader = TRUE,
+            width = 12, 
+            plotlyOutput("top_jobs_plot")
+          )
+        )
+      )
+    )
+  )
+)
+
+# Server-Logik des Dashboards
+server <- function(input, output) {
+  output$interactive_overview <- renderPlotly({ interactive_overview })
+  output$interactive_violin <- renderPlotly({ interactive_violin })
+  output$interactive_details <- renderPlotly({ interactive_details })
+  output$fig <- renderPlotly({ fig })
+}
+
+# App starten
+shinyApp(ui = ui, server = server)
+```
+
+```{r}
+library(shiny)
+library(shinydashboard)
+library(plotly)
+library(ggplot2)
+library(dplyr)
+library(readr)
+
+
+data <- read_csv("/Users/ilyas/Desktop/FHNW/3. Semester/ivi/Data_Science_Salaries.csv")
+
+
+# 1. Überblick: Interaktiver Scatterplot
+overview_plot <- ggplot(data, aes(x = Year, y = `Salary in USD`, color = `Company Size`)) +
+  geom_point(alpha = 0.6) +
+  labs(
+    title = "Zusammenhang zwischen Jahr, Gehalt und Firmengrösse",
+    x = "Jahr",
+    y = "Gehalt in USD",
+    color = "Firmengrösse"
+  ) +
+  theme_minimal()
+
+interactive_overview <- ggplotly(overview_plot)
+
+# 2. Zoom und Filter: Gehaltsverteilung für Data Scientists (Interaktives Violin-Plot)
+data_scientist_salaries <- data %>%
+  filter(`Job Title` == "Data Scientist")
+
+violin_plot <- ggplot(data_scientist_salaries, aes(x = "", y = `Salary in USD`)) +
+  geom_violin(fill = "skyblue", alpha = 0.7) +
+  geom_jitter(width = 0.2, alpha = 0.4, color = "darkblue") +
+  labs(
+    title = "Gehaltsverteilung für Data Scientists",
+    x = "",
+    y = "Gehalt in USD"
+  ) +
+  theme_minimal()
+
+interactive_violin <- ggplotly(violin_plot)
+
+# 3. Details-on-Demand: Interaktiver Scatterplot für spezifisches Jahr und Erfahrungsniveau
+details <- data %>%
+  filter(Year == 2023 & `Experience Level` == "Senior")
+
+details_plot <- ggplot(details, aes(x = `Company Location`, y = `Salary in USD`, color = `Employment Type`)) +
+  geom_point(size = 3, alpha = 0.7) +
+  labs(
+    title = "Gehälter für Senior-Level im Jahr 2023",
+    x = "Standort des Unternehmens",
+    y = "Gehalt in USD",
+    color = "Beschäftigungsart"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+interactive_details <- ggplotly(details_plot)
+
+# 4. Top 10 Demanded Jobs (Interaktive Balkendiagramm)
+top_10_job <- data.frame(
+  `Job Title` = c("Data Scientist", "Software Engineer", "Product Manager", "AI Specialist", "Data Analyst", "ML Engineer", "Business Analyst", "DevOps Engineer", "UX Designer", "Security Analyst"),
+  Popularity = c(100, 95, 90, 85, 80, 75, 70, 65, 60, 55)
+)
+
+fig <- plot_ly(
+  data = top_10_job,
+  y = ~reorder(`Job Title`, Popularity), 
+  x = ~Popularity,
+  type = 'bar', 
+  orientation = 'h',
+  text = ~paste("Popularity: ", Popularity),
+  textposition = 'outside',
+  color = ~`Job Title`,
+  colors = "Set1",
+  hoverinfo = 'text'
+) %>%
+  layout(
+    title = list(text = "Top 10 Demanded Jobs", font = list(size = 26)),
+    xaxis = list(title = "Popularity"),
+    yaxis = list(title = "Job Title"),
+    showlegend = FALSE
+  )
+
+# UI des Dashboards
+ui <- dashboardPage(
+  dashboardHeader(title = "Data Science Salary Dashboard"),
+  
+  dashboardSidebar(
+    sidebarMenu(
+      menuItem("Übersicht", tabName = "overview", icon = icon("bar-chart")),
+      menuItem("Gehaltsverteilung", tabName = "salary_distribution", icon = icon("line-chart")),
+      menuItem("Senior-Level Gehälter", tabName = "details", icon = icon("search")),
+      menuItem("Top 10 Jobs", tabName = "top_jobs", icon = icon("list"))
+    )
+  ),
+  
+  dashboardBody(
+    tabItems(
+      # Übersicht Tab
+      tabItem(
+        tabName = "overview",
+        fluidRow(
+          box(
+            title = "Zusammenhang zwischen Jahr, Gehalt und Firmengrösse", 
+            status = "primary", 
+            solidHeader = TRUE,
+            width = 12, 
+            plotlyOutput("overview_plot")
+          )
+        )
+      ),
+      
+      # Gehaltsverteilung Tab
+      tabItem(
+        tabName = "salary_distribution",
+        fluidRow(
+          box(
+            title = "Gehaltsverteilung für Data Scientists", 
+            status = "primary", 
+            solidHeader = TRUE,
+            width = 12, 
+            plotlyOutput("violin_plot")
+          )
+        )
+      ),
+      
+      # Senior-Level Gehälter Tab
+      tabItem(
+        tabName = "details",
+        fluidRow(
+          box(
+            title = "Gehälter für Senior-Level im Jahr 2023", 
+            status = "primary", 
+            solidHeader = TRUE,
+            width = 12, 
+            plotlyOutput("details_plot")
+          )
+        )
+      ),
+      
+      # Top 10 Jobs Tab
+      tabItem(
+        tabName = "top_jobs",
+        fluidRow(
+          box(
+            title = "Top 10 Demanded Jobs", 
+            status = "primary", 
+            solidHeader = TRUE,
+            width = 12, 
+            plotlyOutput("top_jobs_plot")
+          )
+        )
+      )
+    )
+  )
+)
+
+# Server-Logik des Dashboards
+server <- function(input, output) {
+  output$overview_plot <- renderPlotly({ interactive_overview })
+  output$violin_plot <- renderPlotly({ interactive_violin })
+  output$details_plot <- renderPlotly({ interactive_details })
+  output$fig <- renderPlotly({ fig })
+}
+
+# App starten
+shinyApp(ui = ui, server = server)
+
+```
